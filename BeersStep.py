@@ -1,10 +1,34 @@
+""" This file is picked up by 3D Slicer and used to create a widget. BeersStep
+	(the class) specifies the Help and Acknowledgements qt box seen in Slicer.
+	BeersStepWidget start the main action of the module, creating a workflow
+	from ctk and creating initial links to Slicer's MRML data. Most of this
+	module is modeled after ChangeTracker by Fedorov, which can be found in
+	the following GitHub repository: https://github.com/fedorov/ChangeTrackerPy
+
+
+	vtk is a libary associated with image processing, ctk a refined version of
+	vtk meant specifically for medical imaging and used to here to create a
+	step-by-step workflow, qt a popular user interface library, and slicer.
+	The program 3D Slicer has access to these libraries (and more), and is
+	referenced here as __main__. BeersStepWizard is a folder that contains
+	the individual steps of the workflow and does most of the computational
+	work. 
+
+
+	 All the best, Andrew Beers
+"""
+
 from __main__ import vtk, qt, ctk, slicer
 
 import BeersStepWizard
 
 class BeersStep:
 
-	#Example Extension Definitions
+	""" This class specifies the Help + Acknowledgements section. One assumes
+		that Slicer looks for a class with the same name as the file name. 
+		Modifications to the parent result in modifications to the qt box that 
+		contains the relevant information.
+	"""
 
 	def __init__( self, parent ):
 		parent.title = """BeersStepTaker"""
@@ -13,14 +37,16 @@ class BeersStep:
 		parent.helpText = """
 		A step by step template derived from ChangeTracker
 		""";
-		parent.acknowledgementText = """Hopefully, this work leads to a job at the QTIM
+		parent.acknowledgementText = """Andrew Beers, Brown University
 		"""
 		self.parent = parent
 		self.collapsed = False
 
-class BeersStepWidget():
+class BeersStepWidget:
 
-	#Don't yet know what this does
+	""" It seems to be that Slicer creates an instance of this class with a
+		qMRMLWidget parent. If for some reason it doesn't, this __init__ will.
+	"""
 
 	def __init__( self, parent=None ):
 		if not parent:
@@ -31,33 +57,43 @@ class BeersStepWidget():
 			self.parent = parent
 			self.layout = self.parent.layout()
 
+	""" Slicer seems to call all methods of these classes upon entry. setup creates
+		a workflow from ctk, which simply means that it creates a certies of UI
+		steps one can traverse with "next" / "previous" buttons. The steps themselves
+		are contained within BeersStepWizard.
+	"""
+
 	def setup( self ):
 
-		#This starts our workflow.
-
+		# Currently unclear on the difference between ctkWorkflow and
+		# ctkWorkflowStackedWidget, but presumably the latter creates a UI
+		# for the former
 		self.workflow = ctk.ctkWorkflow()
-
 		workflowWidget = ctk.ctkWorkflowStackedWidget()
 		workflowWidget.setWorkflow( self.workflow )
 
-		# create all wizard steps
-		self.Step1 = BeersStepWizard.VolumeSelectStep( 'VolumeSelectStep'  )
-		self.Step2 = BeersStepWizard.RegistrationStep( 'RegistrationStep'  )
-		self.Step3 = BeersStepWizard.NormalizationStep( 'NormalizationStep'  )
+		# Create workflow steps.
+		self.Step1 = BeersStepWizard.VolumeSelectStep('VolumeSelectStep')
+		self.Step2 = BeersStepWizard.RegistrationStep('RegistrationStep')
+		self.Step3 = BeersStepWizard.NormalizationStep('NormalizationStep')
+		self.Step4 = BeersStepWizard.ROIStep('ROIStep')
 
-		# add the wizard steps to an array for convenience
+		# Add the wizard steps to an array for convenience. Much of the following code
+		# is copied wholesale from ChangeTracker.
 		allSteps = []
-
 		allSteps.append( self.Step1 )
 		allSteps.append( self.Step2 )
 		allSteps.append( self.Step3 )
 
-		# Add transition for the first step which let's the user choose between simple and advanced mode
-		self.workflow.addTransition( self.Step1, self.Step2 )
-		self.workflow.addTransition( self.Step2, self.Step3 )
+		# Adds transition functionality between steps.
+		self.workflow.addTransition(self.Step1, self.Step2)
+		self.workflow.addTransition(self.Step2, self.Step3)
+		self.workflow.addTransition(self.Step2, self.Step4)
 
+		# The following code creates a so-called parameter node referencing the
+		# vtkMRMLScriptedModuleNode class, while checking to make sure one doesn't
+		# already exist for some reason. This node keeps track of changse to MRML scene.
 		nNodes = slicer.mrmlScene.GetNumberOfNodesByClass('vtkMRMLScriptedModuleNode')
-
 		self.parameterNode = None
 		for n in xrange(nNodes):
 			compNode = slicer.mrmlScene.GetNthNodeByClass(n, 'vtkMRMLScriptedModuleNode')
@@ -71,10 +107,11 @@ class BeersStepWidget():
 			self.parameterNode.SetModuleName('BeersStepTaker')
 			slicer.mrmlScene.AddNode(self.parameterNode)
 
+		# Individual steps get access to the parameter node too!
 		for s in allSteps:
 				s.setParameterNode (self.parameterNode)
 
-		# restore workflow step
+		# Restores workflow step in case something goes wrong.
 		currentStep = self.parameterNode.GetParameter('currentStep')
 		if currentStep != '':
 			print 'Restoring workflow step to ', currentStep
@@ -87,18 +124,13 @@ class BeersStepWidget():
 		else:
 			print 'currentStep in parameter node is empty!'
 
-		# start the workflow and show the widget
+		# Starts and show the workflow.
 		self.workflow.start()
 		workflowWidget.visible = True
 		self.layout.addWidget( workflowWidget )
 
-		# enable global access to the dynamicFrames on step 2 and step 6
-		#slicer.modules.emsegmentSimpleDynamicFrame = defineInputChannelsSimpleStep.dynamicFrame()
-		#slicer.modules.emsegmentAdvancedDynamicFrame = definePreprocessingStep.dynamicFrame()
-
-		# compress the layout
-			#self.layout.addStretch(1)
-
+	""" A quick check to see if the file was loaded. Can be seen in the Python Interactor.
+	"""
 
 	def enter(self):
 		print "BeersStep Template Called"

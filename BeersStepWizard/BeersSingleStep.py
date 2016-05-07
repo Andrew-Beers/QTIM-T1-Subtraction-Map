@@ -1,51 +1,71 @@
+""" This class is the base class for all indivudal steps in this module.
+	It establishes many useful methods that mostly overwrite methods from
+	its parent, ctkWorkflowWidgetStep. Its methods in turn are often
+	overwritten as convenient by its children. It is not significantly
+	different from its parent class in ctk.
+"""
+
 from __main__ import qt, ctk
 
 class BeersSingleStep( ctk.ctkWorkflowWidgetStep ) :
 
-  def __init__( self, stepid ):
-    self.initialize( stepid )
+	def __init__( self, stepid ):
 
-  def setParameterNode(self, parameterNode):
-    '''
-    Keep the pointer to the parameter node for each step
-    '''
-    self.__parameterNode = parameterNode
+		# Method inherited from ctk, one hopes.
+		self.initialize( stepid )
 
-  def parameterNode(self):
-    return self.__parameterNode
 
-  def createUserInterface( self ):
-    self.__layout = qt.QFormLayout( self )
-    self.__layout.setVerticalSpacing( 5 )
+	def setParameterNode(self, parameterNode):
 
-    # Add empty rows
-    self.__layout.addRow( "", qt.QWidget() )
-    self.__layout.addRow( "", qt.QWidget() )
+		# Keeps track of MRML objects, other qualities in the scene.
+		self.__parameterNode = parameterNode
 
-    return self.__layout
+	def parameterNode(self):
 
-  def onEntry( self, comingFrom, transitionType ):
-    comingFromId = "None"
-    if comingFrom: 
-      comingFromId = comingFrom.id()
-    print "-> onEntry - current [%s] - comingFrom [%s]" % ( self.id(), comingFromId )
-    super( BeersSingleStep, self ).onEntry( comingFrom, transitionType )
+		return self.__parameterNode
 
-  def onExit( self, goingTo, transitionType ):
-    goingToId = "None"
-    if goingTo: 
-      goingToId = goingTo.id()
-    print "-> onExit - current [%s] - goingTo [%s]" % ( self.id(), goingToId )
-    super( BeersSingleStep, self ).onExit( goingTo, transitionType )
+	def createUserInterface( self ):
 
-  def validate( self, desiredBranchId ):
-    return
-    print "-> validate %s" % self.id()
+  		# Create base layout for a step.
+		self.__layout = qt.QFormLayout( self )
+		self.__layout.setVerticalSpacing( 5 )
 
-  def validationSucceeded( self, desiredBranchId ):
-    super( BeersSingleStep, self ).validate( True, desiredBranchId )
+		# # Add empty rows
+		# self.__layout.addRow( "", qt.QWidget() )
+		# self.__layout.addRow( "", qt.QWidget() )
 
-  def validationFailed( self, desiredBranchId, messageTitle='Error', messageText='There was an unknown error. See the console output for more details!' ):
-    messageBox = qt.QMessageBox.warning( self, messageTitle, messageText )
-    super( BeersSingleStep, self ).validate( False, desiredBranchId )
+		return self.__layout
+
+	""" Entry and exit methods are usually extended in the steps themselves.
+		Trigger upon clicking Next and Previous buttons.
+	"""
+
+	def onEntry( self, comingFrom, transitionType ):
+	comingFromId = "None"
+		if comingFrom: 
+			comingFromId = comingFrom.id()
+		print "-> onEntry - current [%s] - comingFrom [%s]" % ( self.id(), comingFromId )
+		super( BeersSingleStep, self ).onEntry( comingFrom, transitionType )
+
+	def onExit( self, goingTo, transitionType ):
+		goingToId = "None"
+		if goingTo: 
+			goingToId = goingTo.id()
+		print "-> onExit - current [%s] - goingTo [%s]" % ( self.id(), goingToId )
+		super( BeersSingleStep, self ).onExit( goingTo, transitionType )
+
+	""" A series of validation methods also overwritten in part by individual steps.
+		Useful to prevent users from skipping ahead.
+	"""
+
+	def validate( self, desiredBranchId ):
+		return
+		print "-> validate %s" % self.id()
+
+	def validationSucceeded( self, desiredBranchId ):
+		super( BeersSingleStep, self ).validate( True, desiredBranchId )
+
+	def validationFailed( self, desiredBranchId, messageTitle='Error', messageText='There was an unknown error. See the console output for more details!' ):
+		messageBox = qt.QMessageBox.warning( self, messageTitle, messageText )
+		super( BeersSingleStep, self ).validate( False, desiredBranchId )
 

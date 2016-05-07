@@ -8,15 +8,25 @@ from vtk.util import numpy_support
 class NormalizationStep( BeersSingleStep ) :
 
 	def __init__( self, stepid ):
+
+		""" This method creates a drop-down menu that includes the whole step.
+		The description also acts as a tooltip for the button. There may be 
+		some way to override this. The initialize method is presumably inherited
+		from ctk.
+		"""
+
 		self.initialize( stepid )
 		self.setName( '3. Normalization' )
-		self.setDescription( 'Choose a normalization method. Choose the Skip Normalization option to continue.' )
+		self.setDescription( 'If so desired, normalize your images by dividing them by their standard deviations.' )
 
 		self.__parent = super( NormalizationStep, self )
 
 	def createUserInterface( self ):
-		'''
-		'''
+
+		""" As of now, this step's UI is fairly simple. If there are other methods of
+			normalization, they could be added here.
+		"""
+
 		self.__layout = self.__parent.createUserInterface()
 
 		self.__normalizationButton = qt.QPushButton('Run Gaussian Normalization')
@@ -27,15 +37,15 @@ class NormalizationStep( BeersSingleStep ) :
 
 
 	def killButton(self):
-		# hide useless button
+		# ctk creates a useless final page button. This method gets rid of it.
 		bl = slicer.util.findChildren(text='NormalizationStep')
 		if len(bl):
 			bl[0].hide()
 
 	def validate( self, desiredBranchId ):
-		'''
-		'''
-		self.__parent.validationSucceeded(desiredBranchId)
+
+		# For now, no validation required.
+		self.__parent.validate( desiredBranchId )
 
 	def onEntry(self, comingFrom, transitionType):
 
@@ -51,150 +61,64 @@ class NormalizationStep( BeersSingleStep ) :
 		super(BeersSingleStep, self).onExit(goingTo, transitionType) 
 
 	def onNormalizationRequest(self):
+
+		""" This method uses vtk algorithms to perform simple image calculations. Slicer 
+			images are stored in vtkImageData format, making it difficult to edit them
+			without using vtk. Here, vtkImageShiftScale and vtkImageHistogramStatistics
+			are used to generate max, standard deviation, and simple multiplication. Currently,
+			I create an instance for both baseline and followup; a better understanding
+			of vtk may lead me to consolidate them into one instance later.
+
+		"""
+
 		pNode = self.parameterNode()
 
 		baselineLabel = pNode.GetParameter('baselineVolumeID')
 		followupLabel = pNode.GetParameter('followupVolumeID')
 
-		baselineNode = slicer.util.getNode(baselineLabel)
-		followupNode = slicer.util.getNode(followupLabel)
+		baselineNode = slicer.mrmlScene.GetNodeByID(baselineLabel)
+		followupNode = slicer.mrmlScene.GetNodeByID(followupLabel)
 
 		baselineImage = baselineNode.GetImageData()
 		followupImage = followupNode.GetImageData()
 
+		# tests used to check pre-transform pixel values
+		# b = slicer.util.array(baselineLabel)
+		# d = slicer.util.array(followupLabel)
+
 		imageArray = [baselineImage, followupImage]
-		b = slicer.util.array(baselineLabel)
-		d = slicer.util.array(followupLabel)
 		stdArray = [0,0]
 		maxArray = [0,0]
 		vtkScaleArray = [vtk.vtkImageShiftScale(), vtk.vtkImageShiftScale()]
 		vtkStatsArray = [vtk.vtkImageHistogramStatistics(), vtk.vtkImageHistogramStatistics()]
-		# print vtkScaleArray
 
+		# descriptive statistics are retrieved
 		for i in [0,1]:
 			vtkStatsArray[i].SetInputData(imageArray[i])
 			vtkStatsArray[i].Update()
 			maxArray[i] = vtkStatsArray[i].GetMaximum()
 			stdArray[i] = vtkStatsArray[i].GetStandardDeviation()
-			# print maxArray
-			# print stdArray
 
-		PreMax = maxArray.index(max(maxArray))
+		# values are rescaled to more intense image.
+		CommonMax = maxArray.index(max(maxArray))
 
+		# image calculations are performed
 		for i in [0,1]:
 			vtkScaleArray[i].SetInputData(imageArray[i])
 			vtkScaleArray[i].SetOutputScalarTypeToInt()
-			scalar = float(stdArray[PreMax]) / float(stdArray[i])
+			scalar = float(stdArray[CommonMax]) / float(stdArray[i])
 			vtkScaleArray[i].SetScale(scalar)
 			vtkScaleArray[i].Update()
 			imageArray[i] = vtkScaleArray[i].GetOutput()
 
+		# node image data is replaced. One of the images will not effectively change.
 		baselineNode.SetAndObserveImageData(imageArray[0])
 		followupNode.SetAndObserveImageData(imageArray[1])
 
-		a = slicer.util.array(baselineLabel)
-		c = slicer.util.array(followupLabel)
-		print a[100,190,:]
-		print b[100,190,:]
-		print c[100,190,:]
-		print d[100,190,:]
-
-		# baselineNode = slicer.util.getNode(baselineLabel)
-		# followupNode = slicer.util.getNode(followupLabel)
-		# print baselineNode
-
-		# baselineImage = baselineNode.GetImageData()
-		# followupImage = followupNode.GetImageData()
-
-		# imageArray = [baselineImage, followupImage]
-		# stdArray = [0,0]
-		# maxArray = [0,0]
-		# stdMaxArray = [0,0]
-		# stdImageArray = [vtk.vtkImageData(),vtk.vtkImageData()]
-		# normImageArray = [vtk.vtkImageData(),vtk.vtkImageData()]
-
-		# vtkScale = vtk.vtkImageShiftScale()
-		# vtkScale.SetOutputScalarTypeToFloat()
-		# vtkStats = vtk.vtkImageHistogramStatistics()
-
-		# for i in [0,1]:
-		# 	vtkStats.SetInputData(imageArray[i])
-		# 	vtkStats.Update()
-		# 	maxArray[i] = vtkStats.GetMaximum()
-		# 	stdArray[i] = vtkStats.GetStandardDeviation()
-		# 	vtkScale.SetInputData(imageArray[i])
-		# 	vtkScale.Update()
-		# 	vtkScale.SetOutputScalarTypeToFloat()
-		# 	vtkScale.SetScale(1 / stdArray[i])
-		# 	stdImageArray[i] = vtkScale.GetOutput()
-		# 	vtkStats.SetInputData(stdImageArray[i])
-		# 	vtkStats.Update()
-		# 	stdMaxArray[i] = vtkStats.GetMaximum()
-		# 	print maxArray[i]
-		# 	print stdMaxArray[i]
-
-		# PreMax = max(maxArray)
-		# PostMax = max(stdMaxArray)
-
-		# for i in [0,1]:
-		# 	vtkScale.SetInputData(stdImageArray[i])
-		# 	vtkScale.Update()
-		# 	vtkScale.OutputScalarTypeToInt()
-		# 	vtkScale.SetScale(PreMax / PostMax)
-		# 	normImageArray[i] = vtkScale.GetOutput()
-
-		# # baselineArray = slicer.util.array(baselineLabel)
-		# # followupArray = slicer.util.array(followupLabel)
-		# # print baselineArray[100,190,:]
-		# # print baselineArray.dtype
-
-		# # MaxIntensity = max(baselineArray.max(), followupArray.max())
-		# # print MaxIntensity
-
-		# # MinIntensity = min(baselineArray.min(), followupArray.min())
-		# # print MinIntensity
-
-		# if MinIntensity < 0:
-		# 	print "Negative Values!"
-
-		# baselineMultiplier = 0.5
-		# vtkMultiply.setInput1Data(baselineNode.GetImageData())
-		# vtkMultiply.setConstantK(baselineMultiplier)
-
-		# baselineArray = baselineArray / baselineArray.std()
-		# followupArray = followupArray / followupArray.std()
-		# print baselineArray[100,190,:]
-
-		# MaxRelativeIntensity = max(baselineArray.max(), followupArray.max())
-
-		# baselineArray = baselineArray * (MaxIntensity / MaxRelativeIntensity) / 2
-		# followupArray = followupArray * (MaxIntensity / MaxRelativeIntensity) / 2
-		# print baselineArray[100,190,:]
-
-		# baselineArray = np.around(baselineArray)
-		# followupArray = np.around(followupArray)
-		# print baselineArray[100,190,:]
-		# print baselineArray.dtype
-
-		# # baselineArray = baselineArray - 300
-
-		# baselineArray = baselineArray.astype('int16')
-		# followupArray = followupArray.astype('int16')
-		# print baselineArray.dtype
-		# print baselineArray[100,190,:]
-
-		# ijkToRAS = vtk.vtkMatrix4x4()
-		# baselineNode.GetIJKToRASMatrix(ijkToRAS)
-		# print 'Coordinates Received'
-
-		# VTK_baseline = numpy_support.numpy_to_vtk(num_array=baselineArray.ravel(), deep=True, array_type=vtk.VTK_INT)
-		# VTK_followup = numpy_support.numpy_to_vtk(num_array=baselineArray.ravel(), deep=True, array_type=vtk.VTK_INT)
-
-		# baselineNode.SetAndObserveImageData(VTK_baseline)
-		# followupNode.SetAndObserveImageData(VTK_followup)
-		# # baselineNode.Modified()
-		# # followupNode.GetImageData().Modified()
-
-		# baselineArray = slicer.util.array(baselineLabel)
-		# print baselineArray[100,190,:]
-
+		# tests used to check post-transofrm pixel values
+		# a = slicer.util.array(baselineLabel)
+		# c = slicer.util.array(followupLabel)
+		# print a[100,190,:]
+		# print b[100,190,:]
+		# print c[100,190,:]
+		# print d[100,190,:]
