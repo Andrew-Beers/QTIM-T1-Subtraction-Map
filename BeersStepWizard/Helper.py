@@ -11,24 +11,6 @@ import time
 class Helper( object ):
 
 	@staticmethod
-	def Info( message ):
-	'''
-	
-	'''
-
-	#print "[ChangeTrackerPy " + time.strftime( "%m/%d/%Y %H:%M:%S" ) + "]: " + str( message )
-	#sys.stdout.flush()
-
-	@staticmethod
-	def Warning( message ):
-	'''
-	
-	'''
-
-	#print "[ChangeTrackerPy " + time.strftime( "%m/%d/%Y %H:%M:%S" ) + "]: WARNING: " + str( message )
-	#sys.stdout.flush()
-
-	@staticmethod
 	def Error( message ):
 
 		print "[ChangeTrackerPy " + time.strftime( "%m/%d/%Y %H:%M:%S" ) + "]: ERROR: " + str( message )
@@ -72,7 +54,7 @@ class Helper( object ):
 		if n < 0 or n > len( steps ):
 			n = 0
 
-	return steps[n]
+		return steps[n]
 
 	@staticmethod
 	def SetBgFgVolumes(bg, fg):
@@ -129,7 +111,7 @@ class Helper( object ):
 						children.append(p)
 				except AttributeError:
 			  		pass
-			return children
+		return children
 
 	@staticmethod
 	def getNodeByID(id):

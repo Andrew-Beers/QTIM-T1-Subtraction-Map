@@ -36,12 +36,13 @@ class BeersSingleStep( ctk.ctkWorkflowWidgetStep ) :
 
 		return self.__layout
 
-	""" Entry and exit methods are usually extended in the steps themselves.
-		Trigger upon clicking Next and Previous buttons.
-	"""
-
 	def onEntry( self, comingFrom, transitionType ):
-	comingFromId = "None"
+		
+		""" Entry and exit methods are usually extended in the steps themselves.
+			Trigger upon clicking Next and Previous buttons.
+		"""
+
+		comingFromId = "None"
 		if comingFrom: 
 			comingFromId = comingFrom.id()
 		print "-> onEntry - current [%s] - comingFrom [%s]" % ( self.id(), comingFromId )
@@ -54,11 +55,12 @@ class BeersSingleStep( ctk.ctkWorkflowWidgetStep ) :
 		print "-> onExit - current [%s] - goingTo [%s]" % ( self.id(), goingToId )
 		super( BeersSingleStep, self ).onExit( goingTo, transitionType )
 
-	""" A series of validation methods also overwritten in part by individual steps.
-		Useful to prevent users from skipping ahead.
-	"""
-
 	def validate( self, desiredBranchId ):
+		
+		""" A series of validation methods also overwritten in part by individual steps.
+			Useful to prevent users from skipping ahead.
+		"""
+		
 		return
 		print "-> validate %s" % self.id()
 

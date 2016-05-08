@@ -1,18 +1,24 @@
+""" This is Step 3. The user has the option to normalize intensity values
+	across pre- and post-contrast images.
+"""
+
 from __main__ import qt, ctk, slicer
 
 from BeersSingleStep import *
 from Helper import *
-import numpy as np
-from vtk.util import numpy_support
+
+""" NormalizationStep inherits from BeersSingleStep, with itself inherits
+	from a ctk workflow class. 
+"""
 
 class NormalizationStep( BeersSingleStep ) :
 
 	def __init__( self, stepid ):
 
 		""" This method creates a drop-down menu that includes the whole step.
-		The description also acts as a tooltip for the button. There may be 
-		some way to override this. The initialize method is presumably inherited
-		from ctk.
+			The description also acts as a tooltip for the button. There may be 
+			some way to override this. The initialize method is presumably inherited
+			from ctk.
 		"""
 
 		self.initialize( stepid )
@@ -43,12 +49,12 @@ class NormalizationStep( BeersSingleStep ) :
 			bl[0].hide()
 
 	def validate( self, desiredBranchId ):
-
+		print "validating normalization..."
 		# For now, no validation required.
-		self.__parent.validate( desiredBranchId )
+		self.__parent.validationSucceeded(desiredBranchId)
 
 	def onEntry(self, comingFrom, transitionType):
-
+		print "Entering normalization step."
 		super(NormalizationStep, self).onEntry(comingFrom, transitionType)
 		pNode = self.parameterNode()
 		pNode.SetParameter('currentStep', self.stepid)
@@ -56,9 +62,34 @@ class NormalizationStep( BeersSingleStep ) :
 		qt.QTimer.singleShot(0, self.killButton)
 
 	def onExit(self, goingTo, transitionType):   
+		self.ROIPrep()
 		# extra error checking, in case the user manages to click ReportROI button
-
+		print "Leaving normalization step."
 		super(BeersSingleStep, self).onExit(goingTo, transitionType) 
+
+	def ROIPrep(self):
+		pNode = self.parameterNode()
+
+		baselineVolume = Helper.getNodeByID(pNode.GetParameter('baselineVolumeID'))
+		roiTransformID = pNode.GetParameter('roiTransformID')
+		roiTransformNode = None
+
+		if roiTransformID != '':
+			roiTransformNode = Helper.getNodeByID(roiTransformID)
+		else:
+			roiTransformNode = slicer.vtkMRMLLinearTransformNode()
+			slicer.mrmlScene.AddNode(roiTransformNode)
+			pNode.SetParameter('roiTransformID', roiTransformNode.GetID())
+
+		dm = vtk.vtkMatrix4x4()
+		# baselineVolume.GetIJKToRASDirectionMatrix(dm)
+		dm.SetElement(0,3,0)
+		dm.SetElement(1,3,0)
+		dm.SetElement(2,3,0)
+		dm.SetElement(0,0,abs(dm.GetElement(0,0)))
+		dm.SetElement(1,1,abs(dm.GetElement(1,1)))
+		dm.SetElement(2,2,abs(dm.GetElement(2,2)))
+		roiTransformNode.SetAndObserveMatrixTransformToParent(dm)
 
 	def onNormalizationRequest(self):
 
@@ -70,6 +101,8 @@ class NormalizationStep( BeersSingleStep ) :
 			of vtk may lead me to consolidate them into one instance later.
 
 		"""
+
+		print "Normalization Called"
 
 		pNode = self.parameterNode()
 

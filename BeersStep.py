@@ -24,13 +24,14 @@ import BeersStepWizard
 
 class BeersStep:
 
-	""" This class specifies the Help + Acknowledgements section. One assumes
-		that Slicer looks for a class with the same name as the file name. 
-		Modifications to the parent result in modifications to the qt box that 
-		contains the relevant information.
-	"""
-
 	def __init__( self, parent ):
+
+		""" This class specifies the Help + Acknowledgements section. One assumes
+			that Slicer looks for a class with the same name as the file name. 
+			Modifications to the parent result in modifications to the qt box that 
+			contains the relevant information.
+		"""
+
 		parent.title = """BeersStepTaker"""
 		parent.categories = ["""Examples"""]
 		parent.contributors = ["""Andrew Beers"""]
@@ -44,11 +45,12 @@ class BeersStep:
 
 class BeersStepWidget:
 
-	""" It seems to be that Slicer creates an instance of this class with a
-		qMRMLWidget parent. If for some reason it doesn't, this __init__ will.
-	"""
-
 	def __init__( self, parent=None ):
+
+		""" It seems to be that Slicer creates an instance of this class with a
+			qMRMLWidget parent. If for some reason it doesn't, this __init__ will.
+		"""
+
 		if not parent:
 				self.parent = slicer.qMRMLWidget()
 				self.parent.setLayout( qt.QVBoxLayout() )
@@ -57,13 +59,13 @@ class BeersStepWidget:
 			self.parent = parent
 			self.layout = self.parent.layout()
 
-	""" Slicer seems to call all methods of these classes upon entry. setup creates
-		a workflow from ctk, which simply means that it creates a certies of UI
-		steps one can traverse with "next" / "previous" buttons. The steps themselves
-		are contained within BeersStepWizard.
-	"""
-
 	def setup( self ):
+
+		""" Slicer seems to call all methods of these classes upon entry. setup creates
+			a workflow from ctk, which simply means that it creates a certies of UI
+			steps one can traverse with "next" / "previous" buttons. The steps themselves
+			are contained within BeersStepWizard.
+		"""
 
 		# Currently unclear on the difference between ctkWorkflow and
 		# ctkWorkflowStackedWidget, but presumably the latter creates a UI
@@ -76,7 +78,7 @@ class BeersStepWidget:
 		self.Step1 = BeersStepWizard.VolumeSelectStep('VolumeSelectStep')
 		self.Step2 = BeersStepWizard.RegistrationStep('RegistrationStep')
 		self.Step3 = BeersStepWizard.NormalizationStep('NormalizationStep')
-		self.Step4 = BeersStepWizard.ROIStep('ROIStep')
+		self.Step4 = BeersStepWizard.ROIandSubtractStep('ROIandSubtractStep')
 
 		# Add the wizard steps to an array for convenience. Much of the following code
 		# is copied wholesale from ChangeTracker.
@@ -84,11 +86,12 @@ class BeersStepWidget:
 		allSteps.append( self.Step1 )
 		allSteps.append( self.Step2 )
 		allSteps.append( self.Step3 )
+		allSteps.append( self.Step4 )
 
 		# Adds transition functionality between steps.
 		self.workflow.addTransition(self.Step1, self.Step2)
 		self.workflow.addTransition(self.Step2, self.Step3)
-		self.workflow.addTransition(self.Step2, self.Step4)
+		self.workflow.addTransition(self.Step3, self.Step4)
 
 		# The following code creates a so-called parameter node referencing the
 		# vtkMRMLScriptedModuleNode class, while checking to make sure one doesn't
@@ -121,6 +124,8 @@ class BeersStepWidget:
 				self.workflow.setInitialStep(self.Step2)
 			if currentStep == 'Page3':
 				self.workflow.setInitialStep(self.Step3)
+			if currentStep == 'Page4':
+				self.workflow.setInitialStep(self.Step4)
 		else:
 			print 'currentStep in parameter node is empty!'
 
@@ -129,8 +134,8 @@ class BeersStepWidget:
 		workflowWidget.visible = True
 		self.layout.addWidget( workflowWidget )
 
-	""" A quick check to see if the file was loaded. Can be seen in the Python Interactor.
-	"""
-
 	def enter(self):
+		""" A quick check to see if the file was loaded. Can be seen in the Python Interactor.
+		"""
+
 		print "BeersStep Template Called"

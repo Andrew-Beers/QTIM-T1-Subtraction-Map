@@ -196,3 +196,16 @@ for i in [0,1]:
 
 		# baselineArray = slicer.util.array(baselineLabel)
 		# print baselineArray[100,190,:]
+
+Traceback (most recent call last):
+  File "C:/Users/Abeers/Desktop/slicer4minute/BeersStepExample/QTIM-T1-Subtraction-Map\BeersStepWizard\ROIandSubtract.py", line 104, in onROIChanged
+    roi.SetAndObserveTransformNodeID(self.__roiTransformNode.GetID())
+AttributeError: 'NoneType' object has no attribute 'GetID'
+Traceback (most recent call last):
+  File "C:/Users/Abeers/Desktop/slicer4minute/BeersStepExample/QTIM-T1-Subtraction-Map\BeersStepWizard\ROIandSubtract.py", line 220, in onEntry
+    self.updateWidgetFromParameterNode(pNode)
+  File "C:/Users/Abeers/Desktop/slicer4minute/BeersStepExample/QTIM-T1-Subtraction-Map\BeersStepWizard\ROIandSubtract.py", line 262, in updateWidgetFromParameterNode
+    self.onROIChanged()
+  File "C:/Users/Abeers/Desktop/slicer4minute/BeersStepExample/QTIM-T1-Subtraction-Map\BeersStepWizard\ROIandSubtract.py", line 104, in onROIChanged
+    roi.SetAndObserveTransformNodeID(self.__roiTransformNode.GetID())
+AttributeError: 'NoneType' object has no attribute 'GetID'
