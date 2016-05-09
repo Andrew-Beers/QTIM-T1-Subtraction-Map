@@ -25,6 +25,7 @@ class NormalizeSubtractStep( BeersSingleStep ) :
 		self.setName( '4. Normalization and Subtraction' )
 		self.setDescription( 'You may want to normalize the intensities between your pre and post-contrast images before subtracting them. This may lead to better contrast in the resulting image. The method below divides both images by the standard deviation of their intensities in order to get a measure of relative intensity. ' )
 
+		self.__status = 'uncalled'
 		self.__parent = super( NormalizeSubtractStep, self )
 
 	def createUserInterface( self ):
@@ -57,9 +58,11 @@ class NormalizeSubtractStep( BeersSingleStep ) :
 			bl[0].hide()
 
 	def validate( self, desiredBranchId ):
-		print "validating normalization..."
-		# For now, no validation required.
-		self.__parent.validationSucceeded(desiredBranchId)
+
+		if self.__status != 'Completed':
+			self.__parent.validationFailed(desiredBranchId, 'Error','You must have completed an image subtraction before moving to the next step.')
+		else:
+			self.__parent.validationSucceeded(desiredBranchId)
 
 	def onEntry(self, comingFrom, transitionType):
 		print "Entering normalization step."
@@ -76,7 +79,7 @@ class NormalizeSubtractStep( BeersSingleStep ) :
 	def ROIPrep(self):
 		pNode = self.parameterNode()
 
-		baselineVolume = Helper.getNodeByID(pNode.GetParameter('baselineVolumeID'))
+		subtractVolume = Helper.getNodeByID(pNode.GetParameter('subtractVolumeID'))
 		roiTransformID = pNode.GetParameter('roiTransformID')
 		roiTransformNode = None
 
@@ -107,6 +110,7 @@ class NormalizeSubtractStep( BeersSingleStep ) :
 		subtractVolume.SetScene(slicer.mrmlScene)
 		subtractVolume.SetName('Post Subtraction Node')
 		slicer.mrmlScene.AddNode(subtractVolume)
+		pNode.SetParameter('subtractVolumeID', subtractVolume.GetID())
 
 		parameters = {}
 		parameters["inputVolume1"] = baselineVolumeID

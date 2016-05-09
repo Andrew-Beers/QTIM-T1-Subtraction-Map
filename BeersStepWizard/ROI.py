@@ -135,7 +135,7 @@ class ROIStep( BeersSingleStep ) :
 		roiCorner8 = [roiCenter[0]-roiRadius[0],roiCenter[1]-roiRadius[1],roiCenter[2]-roiRadius[2],1]
 
 		ras2ijk = vtk.vtkMatrix4x4()
-		self.__baselineVolume.GetRASToIJKMatrix(ras2ijk)
+		self.__subtractVolume.GetRASToIJKMatrix(ras2ijk)
 
 		roiCorner1ijk = ras2ijk.MultiplyPoint(roiCorner1)
 		roiCorner2ijk = ras2ijk.MultiplyPoint(roiCorner2)
@@ -157,7 +157,7 @@ class ROIStep( BeersSingleStep ) :
 		upperIJK[1] = max(roiCorner1ijk[1],roiCorner2ijk[1],roiCorner3ijk[1],roiCorner4ijk[1],roiCorner5ijk[1],roiCorner6ijk[1],roiCorner7ijk[1],roiCorner8ijk[1])
 		upperIJK[2] = max(roiCorner1ijk[2],roiCorner2ijk[2],roiCorner3ijk[2],roiCorner4ijk[2],roiCorner5ijk[2],roiCorner6ijk[2],roiCorner7ijk[2],roiCorner8ijk[2])
 
-		image = self.__baselineVolume.GetImageData()
+		image = self.__subtractVolume.GetImageData()
 		clipper = vtk.vtkImageClip()
 		clipper.ClipDataOn()
 		clipper.SetOutputWholeExtent(int(lowerIJK[0]),int(upperIJK[0]),int(lowerIJK[1]),int(upperIJK[1]),int(lowerIJK[2]),int(upperIJK[2]))
@@ -199,7 +199,7 @@ class ROIStep( BeersSingleStep ) :
 		lm = slicer.app.layoutManager()
 		lm.setLayout(3)
 		pNode = self.parameterNode()
-		Helper.SetBgFgVolumes(pNode.GetParameter('baselineVolumeID'),pNode.GetParameter('followupVolumeID'))
+		# Helper.SetBgFgVolumes(pNode.GetParameter('baselineVolumeID'),pNode.GetParameter('followupVolumeID'))
 		Helper.SetLabelVolume(None)
 
 		# # use this transform node to align ROI with the axes of the baseline
@@ -210,8 +210,8 @@ class ROIStep( BeersSingleStep ) :
 		else:
 			Helper.Error('Internal error! Error code CT-S2-NRT, please report!')
 		
-		baselineVolume = slicer.mrmlScene.GetNodeByID(pNode.GetParameter('baselineVolumeID'))
-		self.__baselineVolume = slicer.mrmlScene.GetNodeByID(pNode.GetParameter('baselineVolumeID'))
+		subtractVolume = slicer.mrmlScene.GetNodeByID(pNode.GetParameter('subtractVolumeID'))
+		self.__subtractVolume = slicer.mrmlScene.GetNodeByID(pNode.GetParameter('subtractVolumeID'))
 
 		# # get the roiNode from parameters node, if it exists, and initialize the
 		# # GUI
@@ -262,13 +262,13 @@ class ROIStep( BeersSingleStep ) :
 		pNode = self.parameterNode()
 		cropVolumeNode = slicer.vtkMRMLCropVolumeParametersNode()
 		cropVolumeNode.SetScene(slicer.mrmlScene)
-		cropVolumeNode.SetName('ChangeTracker_CropVolume_node')
+		cropVolumeNode.SetName('T1_Contrast_CropVolume_node')
 		cropVolumeNode.SetIsotropicResampling(True)
 		cropVolumeNode.SetSpacingScalingConst(0.5)
 		slicer.mrmlScene.AddNode(cropVolumeNode)
 		# TODO hide from MRML tree
 
-		cropVolumeNode.SetInputVolumeNodeID(pNode.GetParameter('followupVolumeID'))
+		cropVolumeNode.SetInputVolumeNodeID(pNode.GetParameter('subtractVolumeID'))
 		cropVolumeNode.SetROINodeID(pNode.GetParameter('roiNodeID'))
 		# cropVolumeNode.SetAndObserveOutputVolumeNodeID(outputVolume.GetID())
 
@@ -277,10 +277,10 @@ class ROIStep( BeersSingleStep ) :
 
 		# TODO: cropvolume error checking
 		outputVolume = slicer.mrmlScene.GetNodeByID(cropVolumeNode.GetOutputVolumeNodeID())
-		outputVolume.SetName("followupROI")
-		pNode.SetParameter('croppedFollowupVolumeID',cropVolumeNode.GetOutputVolumeNodeID())
+		outputVolume.SetName("subtractROI")
+		pNode.SetParameter('croppedSubtractVolumeID',cropVolumeNode.GetOutputVolumeNodeID())
 
-		roiSegmentationID = pNode.GetParameter('croppedFollowupVolumeSegmentationID') 
+		roiSegmentationID = pNode.GetParameter('croppedSubtractVolumeSegmentationID') 
 		if roiSegmentationID == '':
 			roiRange = outputVolume.GetImageData().GetScalarRange()
 
@@ -292,8 +292,8 @@ class ROIStep( BeersSingleStep ) :
 		# even if the seg. volume exists, it needs to be updated, because ROI
 		# could have changed
 		vl = slicer.modules.volumes.logic()
-		roiSegmentation = vl.CreateLabelVolume(slicer.mrmlScene, outputVolume, 'followupROI_segmentation')
-		pNode.SetParameter('croppedfollowupVolumeSegmentationID', roiSegmentation.GetID())
+		roiSegmentation = vl.CreateLabelVolume(slicer.mrmlScene, outputVolume, 'subtractROI_segmentation')
+		pNode.SetParameter('croppedSubtractVolumeSegmentationID', roiSegmentation.GetID())
 
 	def InitVRDisplayNode(self):
 		if self.__vrDisplayNode == None:
@@ -303,7 +303,7 @@ class ROIStep( BeersSingleStep ) :
 				self.__vrDisplayNode = self.__vrLogic.CreateVolumeRenderingDisplayNode()
 				slicer.mrmlScene.AddNode(self.__vrDisplayNode)
 				self.__vrDisplayNode.UnRegister(self.__vrLogic)
-				v = slicer.mrmlScene.GetNodeByID(self.parameterNode().GetParameter('baselineVolumeID'))
+				v = slicer.mrmlScene.GetNodeByID(self.parameterNode().GetParameter('subtractVolumeID'))
 				Helper.InitVRDisplayNode(self.__vrDisplayNode, v.GetID(), self.__roi.GetID())
 				v.AddAndObserveDisplayNodeID(self.__vrDisplayNode.GetID())
 			else:
