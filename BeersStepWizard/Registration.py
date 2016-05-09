@@ -105,7 +105,7 @@ class RegistrationStep( BeersSingleStep ) :
 
 	def onRegistrationRequest(self):
 
-		""" This method makes a call to a differen Slicer module, Expert Automated
+		""" This method makes a call to a different Slicer module, Expert Automated
 			Registration. It is a command line interface (CLI) module that comes 
 			pre-packaged with Slicer. It may be useful to develop a check, in case
 			someone is using a version of slicer without this module. Other modules
@@ -134,7 +134,6 @@ class RegistrationStep( BeersSingleStep ) :
 		self.__cliObserverTag = self.__cliNode.AddObserver('ModifiedEvent', self.processRegistrationCompletion)
 		self.__registrationStatus.setText('Wait ...')
 		self.__registrationButton.setEnabled(0)
-
 
 	def processRegistrationCompletion(self, node, event):
 

@@ -77,8 +77,9 @@ class BeersStepWidget:
 		# Create workflow steps.
 		self.Step1 = BeersStepWizard.VolumeSelectStep('VolumeSelectStep')
 		self.Step2 = BeersStepWizard.RegistrationStep('RegistrationStep')
-		self.Step3 = BeersStepWizard.NormalizationStep('NormalizationStep')
-		self.Step4 = BeersStepWizard.ROIandSubtractStep('ROIandSubtractStep')
+		self.Step3 = BeersStepWizard.NormalizeSubtractStep('NormalizeSubtractStep')
+		self.Step4 = BeersStepWizard.ROIStep('ROIStep')
+		self.Step5 = BeersStepWizard.ThresholdStep('ThresholdStep')
 
 		# Add the wizard steps to an array for convenience. Much of the following code
 		# is copied wholesale from ChangeTracker.
@@ -87,11 +88,13 @@ class BeersStepWidget:
 		allSteps.append( self.Step2 )
 		allSteps.append( self.Step3 )
 		allSteps.append( self.Step4 )
+		allSteps.append( self.Step5 )
 
 		# Adds transition functionality between steps.
 		self.workflow.addTransition(self.Step1, self.Step2)
 		self.workflow.addTransition(self.Step2, self.Step3)
 		self.workflow.addTransition(self.Step3, self.Step4)
+		self.workflow.addTransition(self.Step4, self.Step5)
 
 		# The following code creates a so-called parameter node referencing the
 		# vtkMRMLScriptedModuleNode class, while checking to make sure one doesn't
@@ -125,6 +128,8 @@ class BeersStepWidget:
 			if currentStep == 'Page3':
 				self.workflow.setInitialStep(self.Step3)
 			if currentStep == 'Page4':
+				self.workflow.setInitialStep(self.Step4)
+			if currentStep == 'Page5':
 				self.workflow.setInitialStep(self.Step4)
 		else:
 			print 'currentStep in parameter node is empty!'

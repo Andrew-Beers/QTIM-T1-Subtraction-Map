@@ -9,11 +9,11 @@ from BeersSingleStep import *
 from Helper import *
 import PythonQt
 
-""" ROIandSubtractStep inherits from BeersSingleStep, with itself inherits
+""" ROIStep inherits from BeersSingleStep, with itself inherits
 	from a ctk workflow class. PythonQT is required for this step.
 """
 
-class ROIandSubtractStep( BeersSingleStep ) :
+class ROIStep( BeersSingleStep ) :
 
 	def __init__( self, stepid ):
 
@@ -24,10 +24,10 @@ class ROIandSubtractStep( BeersSingleStep ) :
 		"""
 
 		self.initialize( stepid )
-		self.setName( '4. ROI and Subtract' )
-		self.setDescription( 'Choose a region of interest. Your pre- and post-contrast images will be subtracted pixel-for-pixel upon advancing to the next step' )
+		self.setName( '4. Define ROI' )
+		self.setDescription( 'Select a region of interest, either with a pre-defined ROI or with the interactive tools below.' )
 
-		self.__parent = super( ROIandSubtractStep, self )
+		self.__parent = super( ROIStep, self )
 
 		self.__vrDisplayNode = None
 
@@ -79,7 +79,7 @@ class ROIandSubtractStep( BeersSingleStep ) :
 
 	def killButton(self):
 		# ctk creates a useless final page button. This method gets rid of it.
-		bl = slicer.util.findChildren(text='ROIandSubtractStep')
+		bl = slicer.util.findChildren(text='ROIStep')
 		if len(bl):
 			bl[0].hide()
 
@@ -122,10 +122,8 @@ class ROIandSubtractStep( BeersSingleStep ) :
 	# get the IJK bounding box of the voxels inside ROI
 		roiCenter = [0,0,0]
 		roiRadius = [0,0,0]
-		print roiCenter
 		self.__roi.GetXYZ(roiCenter)
 		self.__roi.GetRadiusXYZ(roiRadius)
-		print roiCenter
 
 		roiCorner1 = [roiCenter[0]+roiRadius[0],roiCenter[1]+roiRadius[1],roiCenter[2]+roiRadius[2],1]
 		roiCorner2 = [roiCenter[0]+roiRadius[0],roiCenter[1]+roiRadius[1],roiCenter[2]-roiRadius[2],1]
@@ -187,9 +185,7 @@ class ROIandSubtractStep( BeersSingleStep ) :
 		camera.SetFocalPoint(roiCenter)
 
 	def validate( self, desiredBranchId ):
-		'''
-		'''
-		self.__parent.validate( desiredBranchId )
+
 		roi = self.__roiSelector.currentNode()
 		if roi == None:
 			self.__parent.validationFailed(desiredBranchId, 'Error', 'Please define ROI!')
@@ -197,7 +193,7 @@ class ROIandSubtractStep( BeersSingleStep ) :
 		self.__parent.validationSucceeded(desiredBranchId)
 
 	def onEntry(self,comingFrom,transitionType):
-		super(ROIandSubtractStep, self).onEntry(comingFrom, transitionType)
+		super(ROIStep, self).onEntry(comingFrom, transitionType)
 
 		# setup the interface
 		lm = slicer.app.layoutManager()
@@ -231,8 +227,6 @@ class ROIandSubtractStep( BeersSingleStep ) :
 		qt.QTimer.singleShot(0, self.killButton)
 
 	def onExit(self, goingTo, transitionType):
-		# TODO: add storeWidgetStateToParameterNode() -- move all pNode-related stuff
-		# there?
 
 		self.ThresholdPrep()
 
@@ -247,10 +241,7 @@ class ROIandSubtractStep( BeersSingleStep ) :
 
 		pNode.SetParameter('roiNodeID', self.__roiSelector.currentNode().GetID())
 
-		# if goingTo.id() == 'SegmentROI':
-		# 	self.doStepProcessing()
-
-		super(ROIandSubtractStep, self).onExit(goingTo, transitionType)
+		super(ROIStep, self).onExit(goingTo, transitionType)
 
 	def updateWidgetFromParameterNode(self, parameterNode):
 		roiNodeID = parameterNode.GetParameter('roiNodeID')
@@ -271,13 +262,13 @@ class ROIandSubtractStep( BeersSingleStep ) :
 		pNode = self.parameterNode()
 		cropVolumeNode = slicer.vtkMRMLCropVolumeParametersNode()
 		cropVolumeNode.SetScene(slicer.mrmlScene)
-		cropVolumeNode.SetName('T1_Subtraction_CropVolume_node')
+		cropVolumeNode.SetName('ChangeTracker_CropVolume_node')
 		cropVolumeNode.SetIsotropicResampling(True)
 		cropVolumeNode.SetSpacingScalingConst(0.5)
 		slicer.mrmlScene.AddNode(cropVolumeNode)
 		# TODO hide from MRML tree
 
-		cropVolumeNode.SetInputVolumeNodeID(pNode.GetParameter('baselineVolumeID'))
+		cropVolumeNode.SetInputVolumeNodeID(pNode.GetParameter('followupVolumeID'))
 		cropVolumeNode.SetROINodeID(pNode.GetParameter('roiNodeID'))
 		# cropVolumeNode.SetAndObserveOutputVolumeNodeID(outputVolume.GetID())
 
@@ -286,10 +277,10 @@ class ROIandSubtractStep( BeersSingleStep ) :
 
 		# TODO: cropvolume error checking
 		outputVolume = slicer.mrmlScene.GetNodeByID(cropVolumeNode.GetOutputVolumeNodeID())
-		outputVolume.SetName("baselineROI")
-		pNode.SetParameter('croppedBaselineVolumeID',cropVolumeNode.GetOutputVolumeNodeID())
+		outputVolume.SetName("followupROI")
+		pNode.SetParameter('croppedFollowupVolumeID',cropVolumeNode.GetOutputVolumeNodeID())
 
-		roiSegmentationID = pNode.GetParameter('croppedBaselineVolumeSegmentationID') 
+		roiSegmentationID = pNode.GetParameter('croppedFollowupVolumeSegmentationID') 
 		if roiSegmentationID == '':
 			roiRange = outputVolume.GetImageData().GetScalarRange()
 
@@ -301,8 +292,8 @@ class ROIandSubtractStep( BeersSingleStep ) :
 		# even if the seg. volume exists, it needs to be updated, because ROI
 		# could have changed
 		vl = slicer.modules.volumes.logic()
-		roiSegmentation = vl.CreateLabelVolume(slicer.mrmlScene, outputVolume, 'baselineROI_segmentation')
-		pNode.SetParameter('croppedBaselineVolumeSegmentationID', roiSegmentation.GetID())
+		roiSegmentation = vl.CreateLabelVolume(slicer.mrmlScene, outputVolume, 'followupROI_segmentation')
+		pNode.SetParameter('croppedfollowupVolumeSegmentationID', roiSegmentation.GetID())
 
 	def InitVRDisplayNode(self):
 		if self.__vrDisplayNode == None:

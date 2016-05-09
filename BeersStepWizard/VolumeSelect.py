@@ -114,7 +114,6 @@ class VolumeSelectStep(BeersSingleStep) :
 		qt.QTimer.singleShot(0, self.killButton)
 
 	def onExit(self, goingTo, transitionType):   
-		
 		super(BeersSingleStep, self).onExit(goingTo, transitionType) 
 
 	def updateWidgetFromParameters(self, parameterNode):

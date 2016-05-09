@@ -1,4 +1,4 @@
-""" This is Step 3. The user has the option to normalize intensity values
+""" This is Step 4. The user has the option to normalize intensity values
 	across pre- and post-contrast images.
 """
 
@@ -7,11 +7,11 @@ from __main__ import qt, ctk, slicer
 from BeersSingleStep import *
 from Helper import *
 
-""" NormalizationStep inherits from BeersSingleStep, with itself inherits
+""" NormalizeSubtractStep inherits from BeersSingleStep, with itself inherits
 	from a ctk workflow class. 
 """
 
-class NormalizationStep( BeersSingleStep ) :
+class NormalizeSubtractStep( BeersSingleStep ) :
 
 	def __init__( self, stepid ):
 
@@ -22,10 +22,10 @@ class NormalizationStep( BeersSingleStep ) :
 		"""
 
 		self.initialize( stepid )
-		self.setName( '3. Normalization' )
-		self.setDescription( 'If so desired, normalize your images by dividing them by their standard deviations.' )
+		self.setName( '4. Normalization and Subtraction' )
+		self.setDescription( 'You may want to normalize the intensities between your pre and post-contrast images before subtracting them. This may lead to better contrast in the resulting image. The method below divides both images by the standard deviation of their intensities in order to get a measure of relative intensity. ' )
 
-		self.__parent = super( NormalizationStep, self )
+		self.__parent = super( NormalizeSubtractStep, self )
 
 	def createUserInterface( self ):
 
@@ -35,16 +35,24 @@ class NormalizationStep( BeersSingleStep ) :
 
 		self.__layout = self.__parent.createUserInterface()
 
-		self.__normalizationButton = qt.QPushButton('Run Gaussian Normalization')
+		self.NormSubtractFrame = qt.QFrame()
+		self.NormSubtractFrame.setLayout(qt.QHBoxLayout())
+		self.__layout.addWidget(self.NormSubtractFrame)
 
-		self.__layout.addRow(self.__normalizationButton)
+
+		self.__normalizationButton = qt.QPushButton('Run Gaussian Normalization')
+		self.NormSubtractFrame.layout().addWidget(self.__normalizationButton)
+
+		self.__subtractionButton = qt.QPushButton('Run Contrast Subtraction')
+		self.NormSubtractFrame.layout().addWidget(self.__subtractionButton)
 
 		self.__normalizationButton.connect('clicked()', self.onNormalizationRequest)
+		self.__subtractionButton.connect('clicked()', self.onSubtractionRequest)
 
 
 	def killButton(self):
 		# ctk creates a useless final page button. This method gets rid of it.
-		bl = slicer.util.findChildren(text='NormalizationStep')
+		bl = slicer.util.findChildren(text='NormalizeSubtractStep')
 		if len(bl):
 			bl[0].hide()
 
@@ -55,16 +63,14 @@ class NormalizationStep( BeersSingleStep ) :
 
 	def onEntry(self, comingFrom, transitionType):
 		print "Entering normalization step."
-		super(NormalizationStep, self).onEntry(comingFrom, transitionType)
+		super(NormalizeSubtractStep, self).onEntry(comingFrom, transitionType)
 		pNode = self.parameterNode()
 		pNode.SetParameter('currentStep', self.stepid)
 		
 		qt.QTimer.singleShot(0, self.killButton)
 
-	def onExit(self, goingTo, transitionType):   
-		self.ROIPrep()
-		# extra error checking, in case the user manages to click ReportROI button
-		print "Leaving normalization step."
+	def onExit(self, goingTo, transitionType):
+		self.ROIPrep() 
 		super(BeersSingleStep, self).onExit(goingTo, transitionType) 
 
 	def ROIPrep(self):
@@ -91,6 +97,56 @@ class NormalizationStep( BeersSingleStep ) :
 		dm.SetElement(2,2,abs(dm.GetElement(2,2)))
 		roiTransformNode.SetAndObserveMatrixTransformToParent(dm)
 
+	def onSubtractionRequest(self):
+
+		pNode = self.parameterNode()
+		baselineVolumeID = pNode.GetParameter('baselineVolumeID')
+		followupVolumeID = pNode.GetParameter('followupVolumeID')
+
+		subtractVolume = slicer.vtkMRMLScalarVolumeNode()
+		subtractVolume.SetScene(slicer.mrmlScene)
+		subtractVolume.SetName('Post Subtraction Node')
+		slicer.mrmlScene.AddNode(subtractVolume)
+
+		parameters = {}
+		parameters["inputVolume1"] = baselineVolumeID
+		parameters["inputVolume2"] = followupVolumeID
+		parameters['outputVolume'] = subtractVolume.GetID()
+		parameters['order'] = '1'
+
+		self.__cliNode = None
+		self.__cliNode = slicer.cli.run(slicer.modules.subtractscalarvolumes, self.__cliNode, parameters)
+
+		# An event listener for the CLI. To-Do: Add a progress bar.
+		self.__cliObserverTag = self.__cliNode.AddObserver('ModifiedEvent', self.processSubtractionCompletion)
+		self.__subtractionButton.setText('Subtraction running...')
+		self.__subtractionButton.setEnabled(0)
+
+
+	def processSubtractionCompletion(self, node, event):
+
+		""" This updates the registration button with the CLI module's convenient status
+			indicator. Upon completion, it applies the transform to the followup node.
+			Furthermore, it sets the followup node to be the baseline node in the viewer.
+			It also saves the transform for later in the parameter node.
+		"""
+
+		self.__status = node.GetStatusString()
+		# self.__registrationStatus.setText('Registration ' + self.__status)
+		print self.__status
+
+		if self.__status == 'Completed':
+			# self.__registrationButton.setEnabled(1)
+			self.__subtractionButton.setText('Subtraction completed!')
+
+			# pNode = self.parameterNode()
+			# followupNode = slicer.mrmlScene.GetNodeByID(pNode.GetParameter('followupVolumeID'))
+			# followupNode.SetAndObserveTransformNodeID(self.__followupTransform.GetID())
+		
+			# Helper.SetBgFgVolumes(pNode.GetParameter('baselineVolumeID'),pNode.GetParameter('followupVolumeID'))
+
+			# pNode.SetParameter('followupTransformID', self.__followupTransform.GetID())
+
 	def onNormalizationRequest(self):
 
 		""" This method uses vtk algorithms to perform simple image calculations. Slicer 
@@ -103,6 +159,8 @@ class NormalizationStep( BeersSingleStep ) :
 		"""
 
 		print "Normalization Called"
+		self.__normalizationButton.setEnabled(0)
+		self.__normalizationButton.setText('Normalization running...')
 
 		pNode = self.parameterNode()
 
@@ -147,6 +205,7 @@ class NormalizationStep( BeersSingleStep ) :
 		# node image data is replaced. One of the images will not effectively change.
 		baselineNode.SetAndObserveImageData(imageArray[0])
 		followupNode.SetAndObserveImageData(imageArray[1])
+		self.__normalizationButton.setText('Normalization complete!')
 
 		# tests used to check post-transofrm pixel values
 		# a = slicer.util.array(baselineLabel)

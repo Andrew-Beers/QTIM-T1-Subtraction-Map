@@ -4,6 +4,7 @@
 from BeersSingleStep import *
 from VolumeSelect import *
 from Registration import *
-from Normalization import *
-from ROIandSubtract import *
+from NormalizeSubtract import *
+from ROI import *
+from Threshold import *
 print 'BeersStepWizard Loaded'
