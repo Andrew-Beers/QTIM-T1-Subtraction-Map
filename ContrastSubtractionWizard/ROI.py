@@ -217,8 +217,8 @@ class ROIStep( BeersSingleStep ) :
 		pNode = self.parameterNode()
 		Helper.SetLabelVolume(None)
 		self.__subtractVolume = slicer.mrmlScene.GetNodeByID(pNode.GetParameter('subtractVolumeID'))
-		Helper.SetBgFgVolumes(pNode.GetParameter('baselineVolumeID'),pNode.GetParameter('followupVolumeID'))
-		
+		Helper.SetBgFgVolumes(pNode.GetParameter('subtractVolumeID'),'')
+
 		# Apply the transform node created in the previous step.
 		roiTfmNodeID = pNode.GetParameter('roiTransformID')
 		if roiTfmNodeID != '':
