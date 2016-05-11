@@ -1,6 +1,6 @@
-""" This file is picked up by 3D Slicer and used to create a widget. BeersStep
+""" This file is picked up by 3D Slicer and used to create a widget. ContrastSubtraction
 	(the class) specifies the Help and Acknowledgements qt box seen in Slicer.
-	BeersStepWidget start the main action of the module, creating a workflow
+	ContrastSubtractionWidget start the main action of the module, creating a workflow
 	from ctk and creating initial links to Slicer's MRML data. Most of this
 	module is modeled after ChangeTracker by Fedorov, which can be found in
 	the following GitHub repository: https://github.com/fedorov/ChangeTrackerPy
@@ -10,19 +10,22 @@
 	vtk meant specifically for medical imaging and used to here to create a
 	step-by-step workflow, qt a popular user interface library, and slicer.
 	The program 3D Slicer has access to these libraries (and more), and is
-	referenced here as __main__. BeersStepWizard is a folder that contains
-	the individual steps of the workflow and does most of the computational
+	referenced here as __main__. ContrastSubtractionWizard is a folder that 
+	contains the individual steps of the workflow and does most of the computational
 	work. 
 
+	This module is meant to subtract pre- and post-contrast images, and then create
+	a label volume highlighting the differences. It allows one to register images,
+	normalize image intensities, and select a region of interest (ROI) along the way.
 
 	 All the best, Andrew Beers
 """
 
 from __main__ import vtk, qt, ctk, slicer
 
-import BeersStepWizard
+import ContrastSubtractionWizard
 
-class BeersStep:
+class ContrastSubtraction:
 
 	def __init__( self, parent ):
 
@@ -32,18 +35,18 @@ class BeersStep:
 			contains the relevant information.
 		"""
 
-		parent.title = """BeersStepTaker"""
+		parent.title = """ContrastSubtraction"""
 		parent.categories = ["""Examples"""]
 		parent.contributors = ["""Andrew Beers"""]
 		parent.helpText = """
-		A step by step template derived from ChangeTracker
+		A multi-step wizard meant to subtract 3D pre- and post-contrast images, and then highlight their differences. Comes with registration, normalization, and ROI tools.
 		""";
-		parent.acknowledgementText = """Andrew Beers, Brown University
+		parent.acknowledgementText = """Andrew Beers, Brown University. Special thanks to the TCIA for providing public testing contrast data.
 		"""
 		self.parent = parent
 		self.collapsed = False
 
-class BeersStepWidget:
+class ContrastSubtractionWidget:
 
 	def __init__( self, parent=None ):
 
@@ -64,7 +67,7 @@ class BeersStepWidget:
 		""" Slicer seems to call all methods of these classes upon entry. setup creates
 			a workflow from ctk, which simply means that it creates a certies of UI
 			steps one can traverse with "next" / "previous" buttons. The steps themselves
-			are contained within BeersStepWizard.
+			are contained within ContrastSubtractionWizard.
 		"""
 
 		# Currently unclear on the difference between ctkWorkflow and
@@ -75,11 +78,12 @@ class BeersStepWidget:
 		workflowWidget.setWorkflow( self.workflow )
 
 		# Create workflow steps.
-		self.Step1 = BeersStepWizard.VolumeSelectStep('VolumeSelectStep')
-		self.Step2 = BeersStepWizard.RegistrationStep('RegistrationStep')
-		self.Step3 = BeersStepWizard.NormalizeSubtractStep('NormalizeSubtractStep')
-		self.Step4 = BeersStepWizard.ROIStep('ROIStep')
-		self.Step5 = BeersStepWizard.ThresholdStep('ThresholdStep')
+		self.Step1 = ContrastSubtractionWizard.VolumeSelectStep('VolumeSelectStep')
+		self.Step2 = ContrastSubtractionWizard.RegistrationStep('RegistrationStep')
+		self.Step3 = ContrastSubtractionWizard.NormalizeSubtractStep('NormalizeSubtractStep')
+		self.Step4 = ContrastSubtractionWizard.ROIStep('ROIStep')
+		self.Step5 = ContrastSubtractionWizard.ThresholdStep('ThresholdStep')
+		self.Step6 = ContrastSubtractionWizard.ReviewStep('ReviewStep')
 
 		# Add the wizard steps to an array for convenience. Much of the following code
 		# is copied wholesale from ChangeTracker.
@@ -89,12 +93,14 @@ class BeersStepWidget:
 		allSteps.append( self.Step3 )
 		allSteps.append( self.Step4 )
 		allSteps.append( self.Step5 )
+		allSteps.append( self.Step6 )
 
 		# Adds transition functionality between steps.
 		self.workflow.addTransition(self.Step1, self.Step2)
 		self.workflow.addTransition(self.Step2, self.Step3)
 		self.workflow.addTransition(self.Step3, self.Step4)
 		self.workflow.addTransition(self.Step4, self.Step5)
+		self.workflow.addTransition(self.Step5, self.Step6)
 
 		# The following code creates a so-called parameter node referencing the
 		# vtkMRMLScriptedModuleNode class, while checking to make sure one doesn't
@@ -104,13 +110,13 @@ class BeersStepWidget:
 		for n in xrange(nNodes):
 			compNode = slicer.mrmlScene.GetNthNodeByClass(n, 'vtkMRMLScriptedModuleNode')
 			nodeid = None
-			if compNode.GetModuleName() == 'BeersStepTaker':
+			if compNode.GetModuleName() == 'ContrastSubtraction':
 				self.parameterNode = compNode
-				print 'Found existing BeersStepTaker parameter node'
+				print 'Found existing ContrastSubtraction parameter node'
 				break
 		if self.parameterNode == None:
 			self.parameterNode = slicer.vtkMRMLScriptedModuleNode()
-			self.parameterNode.SetModuleName('BeersStepTaker')
+			self.parameterNode.SetModuleName('ContrastSubtraction')
 			slicer.mrmlScene.AddNode(self.parameterNode)
 
 		# Individual steps get access to the parameter node too!
@@ -121,15 +127,17 @@ class BeersStepWidget:
 		currentStep = self.parameterNode.GetParameter('currentStep')
 		if currentStep != '':
 			print 'Restoring workflow step to ', currentStep
-			if currentStep == 'Page1':
+			if currentStep == 'VolumeSelectStep':
 				self.workflow.setInitialStep(self.Step1)
-			if currentStep == 'Page2':
+			if currentStep == 'RegistrationStep':
 				self.workflow.setInitialStep(self.Step2)
-			if currentStep == 'Page3':
+			if currentStep == 'NormalizeSubtractStep':
 				self.workflow.setInitialStep(self.Step3)
-			if currentStep == 'Page4':
+			if currentStep == 'ROIStep':
 				self.workflow.setInitialStep(self.Step4)
-			if currentStep == 'Page5':
+			if currentStep == 'ThresholdStep':
+				self.workflow.setInitialStep(self.Step4)
+			if currentStep == 'ReviewStep':
 				self.workflow.setInitialStep(self.Step4)
 		else:
 			print 'currentStep in parameter node is empty!'
@@ -143,4 +151,4 @@ class BeersStepWidget:
 		""" A quick check to see if the file was loaded. Can be seen in the Python Interactor.
 		"""
 
-		print "BeersStep Template Called"
+		print "Contrast Subtraction Module Entered"

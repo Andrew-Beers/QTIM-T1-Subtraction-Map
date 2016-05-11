@@ -1,5 +1,6 @@
 """ This is Step 1. The user selects the pre- and post-contrast volumes 
-	from which to construct a substraction map. 
+	from which to construct a substraction map. TO-DO: Load test-case data,
+	which will likely need to come from the TCIA module.
 """
 
 from __main__ import qt, ctk, slicer
@@ -31,8 +32,7 @@ class VolumeSelectStep(BeersSingleStep) :
 
 		""" This method uses qt to create a user interface. qMRMLNodeComboBox
 			is a drop down menu for picking MRML files. MRML files are collected in
-			a scene, hence .setMRMLscene. Test data currently not functional for
-			some reason.
+			a scene, hence .setMRMLscene.
 		"""
 
 		self.__layout = self.__parent.createUserInterface()
@@ -61,30 +61,16 @@ class VolumeSelectStep(BeersSingleStep) :
 	def killButton(self):
 
 		# ctk creates a useless final page button. This method gets rid of it.
-		bl = slicer.util.findChildren(text='NormalizationStep')
+		bl = slicer.util.findChildren(text='ReviewStep')
 		if len(bl):
 			bl[0].hide()
-
-	def loadData(self):
-
-		#currently loadData always fails, not sure why
-		vl = slicer.modules.volumes.logic()
-		vol1 = vl.AddArchetypeVolume('http://www.slicer.org/slicerWiki/images/5/59/RegLib_C01_1.nrrd', 'Meningioma1', 0)
-		vol2 = vl.AddArchetypeVolume('http://www.slicer.org/slicerWiki/images/e/e3/RegLib_C01_2.nrrd', 'Meningioma2', 0)
-		if vol1 != None and vol2 != None:
-			self.__baselineVolumeSelector.setCurrentNode(vol1)
-			self.__followupVolumeSelector.setCurrentNode(vol1)
-			Helper.SetBgFgVolumes(vol1.GetID(), vol2.GetID())
-		else:
-			print 'LoadData Failed'
-
 
 	def validate( self, desiredBranchId ):
 
 		# validate is called whenever go to a different step
 		self.__parent.validate( desiredBranchId )
 
-		# Check here that the selectors are not empty
+		# Check here that the selectors are not empty / the same
 		baseline = self.__baselineVolumeSelector.currentNode()
 		followup = self.__followupVolumeSelector.currentNode()
 
@@ -106,7 +92,9 @@ class VolumeSelectStep(BeersSingleStep) :
 	def onEntry(self, comingFrom, transitionType):
 
 		super(VolumeSelectStep, self).onEntry(comingFrom, transitionType)
+
 		self.updateWidgetFromParameters(self.parameterNode())
+		
 		pNode = self.parameterNode()
 		pNode.SetParameter('currentStep', self.stepid)
 
@@ -118,7 +106,7 @@ class VolumeSelectStep(BeersSingleStep) :
 
 	def updateWidgetFromParameters(self, parameterNode):
 
-		# Just to make sure parameters stay constant from step to step.
+		# To save parameters from step to step.
 		baselineVolumeID = parameterNode.GetParameter('baselineVolumeID')
 		followupVolumeID = parameterNode.GetParameter('followupVolumeID')
 		if baselineVolumeID != None:

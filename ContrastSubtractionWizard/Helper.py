@@ -44,11 +44,12 @@ class Helper( object ):
 	def GetNthStepId( n ):
 
 		steps = [None, # 0
-				 'SelectScans', # 1
-				 'DefineROI', # 2
-				 'SegmentROI', # 3
-				 'AnalyzeROI', # 4
-				 'ReportROI', # 5
+				 'VolumeSelect', # 1
+				 'Registration', # 2
+				 'NormalizeSubtract', # 3
+				 'ROI', # 4
+				 'Threshold', #5
+				 'Review' # 6
 				 ]                        
 
 		if n < 0 or n > len( steps ):
@@ -58,6 +59,8 @@ class Helper( object ):
 
 	@staticmethod
 	def SetBgFgVolumes(bg, fg):
+
+		# Used to set Background (Bg) and Foreground (Fg) volumes in the scene.
 		appLogic = slicer.app.applicationLogic()
 		selectionNode = appLogic.GetSelectionNode()
 		selectionNode.SetReferenceActiveVolumeID(bg)
@@ -66,6 +69,8 @@ class Helper( object ):
 
 	@staticmethod
 	def SetLabelVolume(lb):
+
+		# Used to create a Label Volume, which can overlay on existing volumes.
 		appLogic = slicer.app.applicationLogic()
 		selectionNode = appLogic.GetSelectionNode()
 		selectionNode.SetReferenceActiveLabelVolumeID(lb)
@@ -73,20 +78,21 @@ class Helper( object ):
 
 	@staticmethod
 	def InitVRDisplayNode(vrDisplayNode, volumeID, roiID):
+
+		# Takes most of the steps necessary to create a 3D Visualization of an image.
+
 		vrLogic = slicer.modules.volumerendering.logic()
 
-		print('ChangeTracker VR: will observe ID '+volumeID)
 		propNode = vrDisplayNode.GetVolumePropertyNode()
 
 		if propNode == None:
 			propNode = slicer.vtkMRMLVolumePropertyNode()
 			slicer.mrmlScene.AddNode(propNode)
-		else:
-			print('Property node: '+propNode.GetID())
 
 		vrDisplayNode.SetAndObserveVolumePropertyNodeID(propNode.GetID())
 
-		vrDisplayNode.SetAndObserveROINodeID(roiID)
+		if roiID != '':
+			vrDisplayNode.SetAndObserveROINodeID(roiID)
 
 		vrDisplayNode.SetAndObserveVolumeNodeID(volumeID)
 
@@ -115,6 +121,7 @@ class Helper( object ):
 
 	@staticmethod
 	def getNodeByID(id):
+
 		return slicer.mrmlScene.GetNodeByID(id)
 
 	@staticmethod

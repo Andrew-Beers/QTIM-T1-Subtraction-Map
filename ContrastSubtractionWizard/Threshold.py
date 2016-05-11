@@ -1,5 +1,5 @@
-""" This is Step 5. The user has the option to normalize intensity values
-	across pre- and post-contrast images.
+""" This is Step 5. The user has the opportunity to threshold a segment 
+	of the subtraction map for analysis.
 """
 
 from __main__ import qt, ctk, slicer
@@ -19,7 +19,7 @@ class ThresholdStep( BeersSingleStep ) :
 
 		""" This method creates a drop-down menu that includes the whole step.
 			The description also acts as a tooltip for the button. There may be 
-			some way to override this. The initialize method is presumably inherited
+			some way to override this. The initialize method is inherited
 			from ctk.
 		"""
 
@@ -30,7 +30,7 @@ class ThresholdStep( BeersSingleStep ) :
 		self.__vrDisplayNode = None
 		self.__threshold = [ -1, -1 ]
 		
-		# initialize VR stuff
+		# Initialize volume rendering.
 		self.__vrLogic = slicer.modules.volumerendering.logic()
 		self.__vrOpacityMap = None
 
@@ -41,8 +41,7 @@ class ThresholdStep( BeersSingleStep ) :
 
 	def createUserInterface( self ):
 
-		""" As of now, this step's UI is fairly simple. If there are other methods of
-			normalization, they could be added here.
+		""" This UI takes advantage of a pre-built slicer thresholding widget.
 		"""
 
 		self.__layout = self.__parent.createUserInterface()
@@ -56,8 +55,12 @@ class ThresholdStep( BeersSingleStep ) :
 		self.__threshRange.connect('valuesChanged(double,double)', self.onThresholdChanged)
 		qt.QTimer.singleShot(0, self.killButton)
 
-	def onThresholdChanged(self): 
+	def onThresholdChanged(self):
 	
+		""" Upon changing the slider (or intializing this step), this method
+			updates the volume rendering node and label volume accordingly.
+		"""
+
 		if self.__vrOpacityMap == None:
 			return
 		
@@ -72,7 +75,7 @@ class ThresholdStep( BeersSingleStep ) :
 		self.__vrOpacityMap.AddPoint(range1,1)
 		self.__vrOpacityMap.AddPoint(range1+1,0)
 
-		# update the label volume accordingly
+		# Use vtk to update the label volume. TO-DO: Investigate these methods further.
 		thresh = vtk.vtkImageThreshold()
 		if vtk.VTK_MAJOR_VERSION <= 5:
 			thresh.SetInput(self.__roiVolume.GetImageData())
@@ -89,7 +92,7 @@ class ThresholdStep( BeersSingleStep ) :
 
 	def killButton(self):
 		# ctk creates a useless final page button. This method gets rid of it.
-		bl = slicer.util.findChildren(text='ThresholdStep')
+		bl = slicer.util.findChildren(text='ReviewStep')
 		if len(bl):
 			bl[0].hide()
 
@@ -98,16 +101,21 @@ class ThresholdStep( BeersSingleStep ) :
 		self.__parent.validationSucceeded(desiredBranchId)
 
 	def onEntry(self, comingFrom, transitionType):
+
+		""" This method removes and adds nodes necessary to for a segementation
+			display, intializes color and opacity maps, and calls the main 
+			thresholding function for the first time.
+		"""
+
 		super(ThresholdStep, self).onEntry(comingFrom, transitionType)
 
 		pNode = self.parameterNode()
 		self.updateWidgetFromParameters(pNode)
 
+		# Removes the background volume.
 		Helper.SetBgFgVolumes(pNode.GetParameter('croppedSubtractVolumeID'),'')
 
-		# TODO: initialize volume selectors, fit ROI to slice viewers, create
-		# label volume, initialize the threshold, initialize volume rendering ?
-
+		# Retrieves necessary nodes.
 		roiVolume = Helper.getNodeByID(pNode.GetParameter('croppedSubtractVolumeID'))
 		self.__roiVolume = roiVolume
 		self.__roiSegmentationNode = Helper.getNodeByID(pNode.GetParameter('croppedSubtractVolumeSegmentationID'))
@@ -117,19 +125,17 @@ class ThresholdStep( BeersSingleStep ) :
 			if vrDisplayNodeID != '':
 				self.__vrDisplayNode = slicer.mrmlScene.GetNodeByID(vrDisplayNodeID)
 
-		if self.__useThresholds:
-
-		  roiNodeID = pNode.GetParameter('roiNodeID')
-		  if roiNodeID == None:
+		roiNodeID = pNode.GetParameter('roiNodeID')
+		if roiNodeID == None:
 			Helper.Error('Failed to find ROI node -- it should have been defined in the previous step!')
 			return
 
-		  Helper.InitVRDisplayNode(self.__vrDisplayNode, roiVolume.GetID(), roiNodeID)
+		# Creates volume rendering node.
+		Helper.InitVRDisplayNode(self.__vrDisplayNode, roiVolume.GetID(), roiNodeID)
 
-		  self.__vrOpacityMap = self.__vrDisplayNode.GetVolumePropertyNode().GetVolumeProperty().GetScalarOpacity()
-		  vrColorMap = self.__vrDisplayNode.GetVolumePropertyNode().GetVolumeProperty().GetRGBTransferFunction()
-		
-		# setup color transfer function once
+		# Does work to intialize color and opacity maps
+		self.__vrOpacityMap = self.__vrDisplayNode.GetVolumePropertyNode().GetVolumeProperty().GetScalarOpacity()
+		vrColorMap = self.__vrDisplayNode.GetVolumePropertyNode().GetVolumeProperty().GetRGBTransferFunction()
 		
 		subtractROIVolume = Helper.getNodeByID(pNode.GetParameter('croppedSubtractVolumeID'))
 		subtractROIRange = subtractROIVolume.GetImageData().GetScalarRange()
@@ -137,7 +143,7 @@ class ThresholdStep( BeersSingleStep ) :
 		vrColorMap.RemoveAllPoints()
 		vrColorMap.AddRGBPoint(0, 0, 0, 0) 
 		vrColorMap.AddRGBPoint(subtractROIRange[0]-1, 0, 0, 0) 
-		vrColorMap.AddRGBPoint(subtractROIRange[0], 0.8, 0, 0) 
+		vrColorMap.AddRGBPoint(subtractROIRange[0], 0.8, 0.8, 0) 
 		vrColorMap.AddRGBPoint(subtractROIRange[1], 0.8, 0.8, 0) 
 		vrColorMap.AddRGBPoint(subtractROIRange[1]+1, 0, 0, 0) 
 
@@ -152,11 +158,13 @@ class ThresholdStep( BeersSingleStep ) :
 		self.__vrOpacityMap.AddPoint(threshRange[1],1)
 		self.__vrOpacityMap.AddPoint(threshRange[1]+1,0)
 
-		labelsColorNode = slicer.modules.colors.logic().GetColorTableNodeID(9)
+		labelsColorNode = slicer.modules.colors.logic().GetColorTableNodeID(10)
 		self.__roiSegmentationNode.GetDisplayNode().SetAndObserveColorNodeID(labelsColorNode)
 
+		# Adds segementation label volume.
 		Helper.SetLabelVolume(self.__roiSegmentationNode.GetID())
 
+		# Adjusts threshold information.
 		self.onThresholdChanged()
 		
 		pNode.SetParameter('currentStep', self.stepid)
@@ -164,28 +172,26 @@ class ThresholdStep( BeersSingleStep ) :
 		qt.QTimer.singleShot(0, self.killButton)
 
 	def onExit(self, goingTo, transitionType):   
-		# extra error checking, in case the user manages to click ReportROI button
+
 		super(BeersSingleStep, self).onExit(goingTo, transitionType) 
 
 	def updateWidgetFromParameters(self, pNode):
-  
+
+		""" Intializes the threshold and label volume established in the previous step.
+		"""
+
 		subtractROIVolume = Helper.getNodeByID(pNode.GetParameter('croppedSubtractVolumeID'))
 		subtractROIRange = subtractROIVolume.GetImageData().GetScalarRange()
 		self.__threshRange.minimum = subtractROIRange[0]
 		self.__threshRange.maximum = subtractROIRange[1]
 
-		if pNode.GetParameter('useSegmentationThresholds') == 'True':
-			self.__useThresholds = True
-
-			thresholdRange = pNode.GetParameter('thresholdRange')
-			if thresholdRange != '':
-				rangeArray = string.split(thresholdRange, ',')
-				self.__threshRange.minimumValue = float(rangeArray[0])
-				self.__threshRange.maximumValue = float(rangeArray[1])
-			else:
-				Helper.Error('Unexpected parameter values! Error code CT-S03-TNA. Please report')
+		thresholdRange = pNode.GetParameter('thresholdRange')
+		if thresholdRange != '':
+			rangeArray = string.split(thresholdRange, ',')
+			self.__threshRange.minimumValue = float(rangeArray[0])
+			self.__threshRange.maximumValue = float(rangeArray[1])
 		else:
-		  self.__useThresholds = False
+			Helper.Error('Unexpected parameter values! Error code CT-S03-TNA. Please report')
 
 		segmentationID = pNode.GetParameter('croppedSubtractVolumeSegmentationID')
 		self.__roiSegmentationNode = Helper.getNodeByID(segmentationID)
